@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="total-bookings">—</div>
+        <div class="stat-label">My Total Bookings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="active-bookings">—</div>
+        <div class="stat-label">Active Bookings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="total-rooms">—</div>
+        <div class="stat-label">Available Rooms</div>
+      </div>
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">My Recent Bookings</h2>
+        <a href="bookings.html" class="btn btn-secondary" style="font-size:13px; padding:8px 14px;">
+          View All
+        </a>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-table">
+            <tr>
+              <td colspan="5" style="text-align:center; color:var(--text-muted);">
+                Loading bookings...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    // Protect this page — teacher only
+    requireRole('teacher');
+
+    // Build sidebar and topbar
+    buildSidebar('teacher');
+    buildTopbar('Dashboard');
+
+    // Load dashboard data
+    const loadDashboard = async () => {
+      const [bookingsResult, roomsResult] = await Promise.all([
+        bookingsAPI.getAll(),
+        roomsAPI.getAll()
+      ]);
+
+      if (bookingsResult.ok) {
+        const bookings = bookingsResult.data.bookings;
+        const active = bookings.filter(b => b.status === 'confirmed').length;
+
+        document.getElementById('total-bookings').textContent = bookings.length;
+        document.getElementById('active-bookings').textContent = active;
+
+        // Render recent bookings (latest 5)
+        const recent = bookings.slice(0, 5);
+        const tbody = document.getElementById('bookings-table');
+
+        if (recent.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align:center; color:var(--text-muted);">
+                No bookings yet. 
+                <a href="bookings.html" style="color:var(--primary);">Book a room</a>
+              </td>
+            </tr>
+          `;
+        } else {
+          tbody.innerHTML = recent.map(b => `
+            <tr>
+              <td>${b.room_name}</td>
+              <td>${new Date(b.date).toLocaleDateString()}</td>
+              <td>${b.start_time} – ${b.end_time}</td>
+              <td>${b.purpose}</td>
+              <td>
+                <span class="badge ${
+                  b.status === 'confirmed' ? 'badge-success' :
+                  b.status === 'cancelled' ? 'badge-error' : 'badge-warning'
+                }">
+                  ${b.status}
+                </span>
+              </td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      if (roomsResult.ok) {
+        document.getElementById('total-rooms').textContent = 
+          roomsResult.data.rooms.length;
+      }
+    };
+
+    loadDashboard();
+  </script>
+</body>
+</html>

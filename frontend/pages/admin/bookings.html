@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Bookings — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Filters -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Search</label>
+          <input 
+            type="text" 
+            id="search-input" 
+            class="form-input" 
+            placeholder="Search by teacher or room..."
+            oninput="filterBookings()"
+          >
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Filter by Date</label>
+          <input type="date" id="date-filter" class="form-input" oninput="filterBookings()">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Filter by Status</label>
+          <select id="status-filter" class="form-input" onchange="filterBookings()">
+            <option value="">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="edited">Edited</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">All Bookings</h2>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Teacher</th>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-table">
+            <tr>
+              <td colspan="7" style="text-align:center; color:var(--text-muted);">
+                Loading bookings...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Cancel Confirmation Modal -->
+  <div class="modal-overlay" id="cancel-modal">
+    <div class="modal" style="max-width:400px;">
+      <h2 class="modal-title">Cancel Booking</h2>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:24px;">
+        Are you sure? The teacher will be notified immediately.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeCancelModal()">Keep Booking</button>
+        <button class="btn btn-danger" onclick="confirmCancel()">Yes, Cancel It</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    requireRole('admin');
+    buildSidebar('admin');
+    buildTopbar('All Bookings');
+
+    let allBookings  = [];
+    let cancellingId = null;
+
+    const loadBookings = async () => {
+      const result = await bookingsAPI.getAll();
+      if (!result.ok) return;
+      allBookings = result.data.bookings;
+      filterBookings();
+    };
+
+    const filterBookings = () => {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const date   = document.getElementById('date-filter').value;
+      const status = document.getElementById('status-filter').value;
+
+      let filtered = allBookings;
+
+      if (search) {
+        filtered = filtered.filter(b =>
+          b.teacher_name.toLowerCase().includes(search) ||
+          b.room_name.toLowerCase().includes(search)
+        );
+      }
+
+      if (date) {
+        filtered = filtered.filter(b => {
+            const bookingDate = new Date(b.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+            return bookingDate === date;
+        });
+      }
+
+      if (status) {
+        filtered = filtered.filter(b => b.status === status);
+      }
+
+      renderBookings(filtered);
+    };
+
+    const renderBookings = (bookings) => {
+      const tbody = document.getElementById('bookings-table');
+
+      if (bookings.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No bookings found
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = bookings.map(b => `
+        <tr>
+          <td style="font-weight:600;">${b.teacher_name}</td>
+          <td>${b.room_name}</td>
+          <td>${new Date(b.date).toLocaleDateString()}</td>
+          <td>${b.start_time} – ${b.end_time}</td>
+          <td>${b.purpose}</td>
+          <td>
+            <span class="badge ${
+              b.status === 'confirmed' ? 'badge-success' :
+              b.status === 'cancelled' ? 'badge-error' : 'badge-warning'
+            }">
+              ${b.status}
+            </span>
+          </td>
+          <td>
+            ${b.status !== 'cancelled' ? `
+              <button 
+                class="btn btn-danger" 
+                style="padding:6px 12px; font-size:12px;"
+                onclick="openCancelModal('${b.id}')"
+              >
+                <i data-lucide="x" style="width:12px; height:12px;"></i>
+                Cancel
+              </button>
+            ` : '—'}
+          </td>
+        </tr>
+      `).join('');
+
+      lucide.createIcons();
+    };
+
+    const openCancelModal  = (id) => {
+      cancellingId = id;
+      document.getElementById('cancel-modal').classList.add('open');
+    };
+
+    const closeCancelModal = () => {
+      document.getElementById('cancel-modal').classList.remove('open');
+    };
+
+    const confirmCancel = async () => {
+      if (!cancellingId) return;
+      const result = await bookingsAPI.cancel(cancellingId);
+      if (result.ok) {
+        showToast('Booking cancelled. Teacher notified.', 'success');
+        closeCancelModal();
+        loadBookings();
+      } else {
+        showToast(result.data.error || 'Something went wrong.', 'error');
+      }
+    };
+
+    loadBookings();
+  </script>
+</body>
+</html>

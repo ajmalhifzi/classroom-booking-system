@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rooms — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Tabs -->
+    <div style="display:flex; gap:8px; margin-bottom:24px;">
+      <button 
+        class="btn btn-primary" 
+        id="tab-rooms"
+        onclick="switchTab('rooms')"
+      >
+        <i data-lucide="door-open" style="width:14px; height:14px;"></i>
+        Browse Rooms
+      </button>
+      <button 
+        class="btn btn-secondary" 
+        id="tab-schedule"
+        onclick="switchTab('schedule')"
+      >
+        <i data-lucide="calendar" style="width:14px; height:14px;"></i>
+        All Bookings Schedule
+      </button>
+    </div>
+
+    <!-- Rooms Tab -->
+    <div id="view-rooms">
+
+      <!-- Search -->
+      <div class="card" style="margin-bottom:24px;">
+        <input 
+          type="text" 
+          id="search-input" 
+          class="form-input" 
+          placeholder="Search rooms by name or location..."
+          oninput="filterRooms()"
+          style="max-width:400px;"
+        >
+      </div>
+
+      <!-- Rooms Grid -->
+      <div class="card-grid" id="rooms-grid">
+        <p style="color:var(--text-muted);">Loading rooms...</p>
+      </div>
+
+    </div>
+
+    <!-- Schedule Tab -->
+    <div id="view-schedule" style="display:none;">
+
+      <!-- Filters -->
+      <div class="card" style="margin-bottom:24px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Search</label>
+            <input 
+              type="text" 
+              id="schedule-search" 
+              class="form-input" 
+              placeholder="Search by room or teacher..."
+              oninput="filterSchedule()"
+            >
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Filter by Date</label>
+            <input 
+              type="date" 
+              id="schedule-date" 
+              class="form-input"
+              oninput="filterSchedule()"
+            >
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Filter by Room</label>
+            <select id="schedule-room" class="form-input" onchange="filterSchedule()">
+              <option value="">All Rooms</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Table -->
+      <div class="card">
+        <div style="margin-bottom:20px;">
+          <h2 style="font-size:16px; font-weight:600;">All Active Bookings</h2>
+          <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">
+            Check this before booking to avoid conflicts
+          </p>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Room</th>
+                <th>Location</th>
+                <th>Teacher</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-table">
+              <tr>
+                <td colspan="6" style="text-align:center; color:var(--text-muted);">
+                  Loading schedule...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    requireRole('teacher');
+    buildSidebar('teacher');
+    buildTopbar('Rooms');
+
+    let allRooms    = [];
+    let allBookings = [];
+
+    // ─── TAB SWITCHING ───
+    const switchTab = (tab) => {
+      document.getElementById('view-rooms').style.display    = tab === 'rooms'    ? 'block' : 'none';
+      document.getElementById('view-schedule').style.display = tab === 'schedule' ? 'block' : 'none';
+      document.getElementById('tab-rooms').className    = tab === 'rooms'    ? 'btn btn-primary'   : 'btn btn-secondary';
+      document.getElementById('tab-schedule').className = tab === 'schedule' ? 'btn btn-primary'   : 'btn btn-secondary';
+      lucide.createIcons();
+    };
+
+    // ─── LOAD ALL DATA ───
+    const loadData = async () => {
+      const [roomsResult, bookingsResult] = await Promise.all([
+        roomsAPI.getAll(),
+        bookingsAPI.getAllRooms()
+      ]);
+
+      if (roomsResult.ok) {
+        allRooms = roomsResult.data.rooms;
+        filterRooms();
+
+        // Populate room filter dropdown
+        const roomSelect = document.getElementById('schedule-room');
+        allRooms.forEach(r => {
+          const option = document.createElement('option');
+          option.value       = r.id;
+          option.textContent = r.room_name;
+          roomSelect.appendChild(option);
+        });
+      }
+
+      if (bookingsResult.ok) {
+        allBookings = bookingsResult.data.bookings;
+        filterSchedule();
+      }
+    };
+
+    // ─── ROOMS TAB ───
+    const filterRooms = () => {
+      const search   = document.getElementById('search-input').value.toLowerCase();
+      const filtered = allRooms.filter(r =>
+        r.room_name.toLowerCase().includes(search) ||
+        r.location.toLowerCase().includes(search)
+      );
+      renderRooms(filtered);
+    };
+
+    const renderRooms = (rooms) => {
+      const grid = document.getElementById('rooms-grid');
+
+      if (rooms.length === 0) {
+        grid.innerHTML = `<p style="color:var(--text-muted);">No rooms found.</p>`;
+        return;
+      }
+
+      grid.innerHTML = rooms.map(r => {
+        const validImages   = r.images ? r.images.filter(img => img && img !== 'null') : [];
+        const roomBookings  = allBookings.filter(b => b.room_id === r.id);
+        const todayBookings = roomBookings.filter(b => {
+          const bookingDate = new Date(b.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+          const today       = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+          return bookingDate === today;
+        });
+
+        return `
+          <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+
+            <!-- Room Image -->
+            <div style="width:100%; height:160px; background:var(--border); border-radius:8px; overflow:hidden;">
+              ${validImages.length > 0 ? `
+                <img src="${validImages[0]}" style="width:100%; height:100%; object-fit:cover;">
+              ` : `
+                <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                  <i data-lucide="door-open" style="width:40px; height:40px; color:var(--text-muted);"></i>
+                </div>
+              `}
+            </div>
+
+            <!-- Room Info -->
+            <div>
+              <div style="font-size:16px; font-weight:700; color:var(--text);">${r.room_name}</div>
+              <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">
+                📍 ${r.location} &nbsp;•&nbsp; 👥 ${r.capacity} seats
+              </div>
+              ${r.description ? `<div style="font-size:13px; color:var(--text-muted); margin-top:6px;">${r.description}</div>` : ''}
+            </div>
+
+            <!-- Today's Bookings for this room -->
+            <div style="background:var(--bg); border-radius:8px; padding:10px; border:1px solid var(--border);">
+              <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">
+                TODAY'S BOOKINGS
+              </div>
+              ${todayBookings.length === 0 ? `
+                <div style="font-size:13px; color:var(--success);">✓ Available all day</div>
+              ` : todayBookings.map(b => `
+                <div style="font-size:12px; color:var(--error); margin-bottom:2px;">
+                  ✕ ${b.start_time} – ${b.end_time} (${b.teacher_name})
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Book Button -->
+            <a 
+              href="/frontend/pages/teacher/bookings.html" 
+              class="btn btn-primary" 
+              style="justify-content:center; margin-top:auto;"
+            >
+              <i data-lucide="calendar-plus" style="width:14px; height:14px;"></i>
+              Book This Room
+            </a>
+
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    };
+
+    // ─── SCHEDULE TAB ───
+    const filterSchedule = () => {
+      const search = document.getElementById('schedule-search').value.toLowerCase();
+      const date   = document.getElementById('schedule-date').value;
+      const roomId = document.getElementById('schedule-room').value;
+
+      let filtered = allBookings;
+
+      if (search) {
+        filtered = filtered.filter(b =>
+          b.room_name.toLowerCase().includes(search) ||
+          b.teacher_name.toLowerCase().includes(search)
+        );
+      }
+
+      if (date) {
+        filtered = filtered.filter(b => {
+          const bookingDate = new Date(b.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+          return bookingDate === date;
+        });
+      }
+
+      if (roomId) {
+        filtered = filtered.filter(b => b.room_id === roomId);
+      }
+
+      renderSchedule(filtered);
+    };
+
+    const renderSchedule = (bookings) => {
+      const tbody = document.getElementById('schedule-table');
+
+      if (bookings.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No bookings found
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = bookings.map(b => `
+        <tr>
+          <td style="font-weight:600;">${b.room_name}</td>
+          <td>${b.location}</td>
+          <td>${b.teacher_name}</td>
+          <td>${new Date(b.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' })}</td>
+          <td>${b.start_time} – ${b.end_time}</td>
+          <td>${b.purpose}</td>
+        </tr>
+      `).join('');
+    };
+
+    // Set today as default date for schedule filter
+    document.getElementById('schedule-date').value =
+      new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+
+    loadData();
+  </script>
+</body>
+</html>

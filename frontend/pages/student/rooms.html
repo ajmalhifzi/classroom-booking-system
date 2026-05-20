@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Schedule — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Search and Filter -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Search Room</label>
+          <input 
+            type="text" 
+            id="search-input" 
+            class="form-input" 
+            placeholder="Search by room name..."
+            oninput="filterBookings()"
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Filter by Date</label>
+          <input 
+            type="date" 
+            id="date-filter" 
+            class="form-input"
+            oninput="filterBookings()"
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Filter by Status</label>
+          <select id="status-filter" class="form-input" onchange="filterBookings()">
+            <option value="">All Statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="edited">Edited</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">All Room Bookings</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">
+          Browse and search all room bookings across the college
+        </p>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Room</th>
+              <th>Location</th>
+              <th>Teacher</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-table">
+            <tr>
+              <td colspan="7" style="text-align:center; color:var(--text-muted);">
+                Loading bookings...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    requireRole('student');
+    buildSidebar('student');
+    buildTopbar('Room Schedule');
+
+    // Set today as default date filter
+    document.getElementById('date-filter').value = 
+      new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+
+    let allBookings = [];
+
+    // Load all bookings
+    const loadBookings = async () => {
+      const result = await bookingsAPI.getAll();
+      if (!result.ok) return;
+
+      allBookings = result.data.bookings;
+      filterBookings();
+    };
+
+    // Filter bookings based on search and filters
+    const filterBookings = () => {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const date   = document.getElementById('date-filter').value;
+      const status = document.getElementById('status-filter').value;
+
+      let filtered = allBookings;
+
+      if (search) {
+        filtered = filtered.filter(b => 
+          b.room_name.toLowerCase().includes(search) ||
+          b.location.toLowerCase().includes(search)
+        );
+      }
+
+      if (date) {
+        filtered = filtered.filter(b => {
+          const bookingDate = new Date(b.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+          return bookingDate === date;
+        });
+      }
+
+      if (status) {
+        filtered = filtered.filter(b => b.status === status);
+      }
+
+      renderBookings(filtered);
+    };
+
+    // Render bookings into table
+    const renderBookings = (bookings) => {
+      const tbody = document.getElementById('bookings-table');
+
+      if (bookings.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No bookings found
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = bookings.map(b => `
+        <tr>
+          <td style="font-weight:600;">${b.room_name}</td>
+          <td>${b.location}</td>
+          <td>${b.teacher_name}</td>
+          <td>${new Date(b.date).toLocaleDateString()}</td>
+          <td>${b.start_time} – ${b.end_time}</td>
+          <td>${b.purpose}</td>
+          <td>
+            <span class="badge ${
+              b.status === 'confirmed' ? 'badge-success' :
+              b.status === 'cancelled' ? 'badge-error' : 'badge-warning'
+            }">
+              ${b.status}
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    };
+
+    loadBookings();
+  </script>
+</body>
+</html>

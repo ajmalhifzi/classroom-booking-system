@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Users — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Search and Filter -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Search User</label>
+          <input 
+            type="text" 
+            id="search-input" 
+            class="form-input" 
+            placeholder="Search by name or email..."
+            oninput="filterUsers()"
+          >
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Filter by Role</label>
+          <select id="role-filter" class="form-input" onchange="filterUsers()">
+            <option value="">All Roles</option>
+            <option value="student">Students</option>
+            <option value="teacher">Teachers</option>
+            <option value="admin">Admins</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">All Users</h2>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>National ID</th>
+              <th>Role</th>
+              <th>Course / Year / Sem</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-table">
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-muted);">
+                Loading users...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal" style="max-width:400px;">
+      <h2 class="modal-title">Delete User</h2>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:24px;">
+        Are you sure? This user and all their bookings will be permanently deleted.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    requireRole('admin');
+    buildSidebar('admin');
+    buildTopbar('Manage Users');
+
+    let allUsers   = [];
+    let deletingId = null;
+    const currentUser = getUser();
+
+    const loadUsers = async () => {
+      const result = await apiRequest('/users');
+      if (!result.ok) return;
+      allUsers = result.data.users;
+      filterUsers();
+    };
+
+    const filterUsers = () => {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const role   = document.getElementById('role-filter').value;
+
+      let filtered = allUsers;
+
+      if (search) {
+        filtered = filtered.filter(u =>
+          u.full_name.toLowerCase().includes(search) ||
+          u.email.toLowerCase().includes(search)
+        );
+      }
+
+      if (role) {
+        filtered = filtered.filter(u => u.role === role);
+      }
+
+      renderUsers(filtered);
+    };
+
+    const renderUsers = (users) => {
+      const tbody = document.getElementById('users-table');
+
+      if (users.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No users found
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td style="font-weight:600;">${u.full_name}</td>
+          <td>${u.email}</td>
+          <td>${u.national_id}</td>
+          <td>
+            <!-- Role Dropdown -->
+            <select 
+              class="form-input" 
+              style="padding:6px 10px; font-size:13px; width:120px;"
+              onchange="updateRole('${u.id}', this.value)"
+              ${u.id === currentUser.id ? 'disabled' : ''}
+            >
+              <option value="student" ${u.role === 'student' ? 'selected' : ''}>Student</option>
+              <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>Teacher</option>
+              <option value="admin"   ${u.role === 'admin'   ? 'selected' : ''}>Admin</option>
+            </select>
+          </td>
+          <td style="color:var(--text-muted); font-size:13px;">
+            ${u.course ? `${u.course} / Y${u.year} / S${u.semester}` : '—'}
+          </td>
+          <td>
+            ${u.id !== currentUser.id ? `
+              <button 
+                class="btn btn-danger" 
+                style="padding:6px 12px; font-size:12px;"
+                onclick="openDeleteModal('${u.id}')"
+              >
+                <i data-lucide="trash-2" style="width:12px; height:12px;"></i>
+                Delete
+              </button>
+            ` : '<span style="color:var(--text-muted); font-size:13px;">You</span>'}
+          </td>
+        </tr>
+      `).join('');
+
+      lucide.createIcons();
+    };
+
+    // Change user role directly from dropdown
+    const updateRole = async (id, role) => {
+      const result = await apiRequest(`/users/${id}/role`, 'PUT', { role });
+      if (result.ok) {
+        showToast(`Role updated to ${role}.`, 'success');
+        loadUsers();
+      } else {
+        showToast(result.data.error || 'Something went wrong.', 'error');
+        loadUsers(); // reload to reset dropdown
+      }
+    };
+
+    const openDeleteModal  = (id) => {
+      deletingId = id;
+      document.getElementById('delete-modal').classList.add('open');
+    };
+
+    const closeDeleteModal = () => {
+      document.getElementById('delete-modal').classList.remove('open');
+    };
+
+    const confirmDelete = async () => {
+      if (!deletingId) return;
+      const result = await apiRequest(`/users/${deletingId}`, 'DELETE');
+      if (result.ok) {
+        showToast('User deleted.', 'success');
+        closeDeleteModal();
+        loadUsers();
+      } else {
+        showToast(result.data.error || 'Something went wrong.', 'error');
+      }
+    };
+
+    loadUsers();
+  </script>
+</body>
+</html>

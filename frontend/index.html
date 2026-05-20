@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Classroom Booking System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="auth-container">
+    <div class="auth-card">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <i data-lucide="building-2" style="color:white; width:22px; height:22px;"></i>
+        </div>
+        <span class="sidebar-logo-text">ClassBook</span>
+      </div>
+
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-subtitle">Sign in to your account to continue</p>
+
+      <!-- Login Form -->
+      <div class="form-group">
+        <label class="form-label">National ID</label>
+        <input 
+          type="text" 
+          id="national_id" 
+          class="form-input" 
+          placeholder="Enter your national ID"
+        >
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          class="form-input" 
+          placeholder="Enter your password"
+        >
+      </div>
+
+      <!-- Error Message -->
+      <div id="error-msg" class="error-msg"></div>
+
+      <!-- Login Button -->
+      <button class="btn btn-primary" id="login-btn" style="width:100%; justify-content:center;">
+        Sign In
+      </button>
+
+      <!-- Signup Link -->
+      <p style="text-align:center; margin-top:24px; font-size:14px; color:var(--text-muted);">
+        Don't have an account? 
+        <a href="signup.html" style="color:var(--primary); font-weight:600; text-decoration:none;">Sign up</a>
+      </p>
+
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    lucide.createIcons();
+
+    // If already logged in, redirect to dashboard
+    if (getToken() && getUser()) {
+      redirectToDashboard(getUser().role);
+    }
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const national_id = document.getElementById('national_id').value.trim();
+      const password    = document.getElementById('password').value.trim();
+      const errorMsg    = document.getElementById('error-msg');
+      const btn         = document.getElementById('login-btn');
+
+      // Basic validation
+      if (!national_id || !password) {
+        errorMsg.textContent = 'Please fill in all fields.';
+        errorMsg.style.display = 'flex';
+        return;
+      }
+
+      // Show loading state
+      btn.textContent = 'Signing in...';
+      btn.disabled = true;
+
+      const result = await authAPI.login({ national_id, password });
+
+      if (result.ok) {
+        // Save token and user info
+        saveToken(result.data.token);
+        saveUser(result.data.user);
+        // Redirect based on role
+        redirectToDashboard(result.data.user.role);
+      } else {
+        errorMsg.textContent = result.data.error || 'Login failed. Try again.';
+        errorMsg.style.display = 'block';
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+      }
+    });
+
+    // Allow pressing Enter to login
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('login-btn').click();
+      }
+    });
+  </script>
+</body>
+</html>

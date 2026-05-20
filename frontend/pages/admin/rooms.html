@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Rooms — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Add Room Button -->
+    <div style="margin-bottom:24px;">
+      <button class="btn btn-primary" onclick="openRoomModal()">
+        <i data-lucide="plus" style="width:16px; height:16px;"></i>
+        Add New Room
+      </button>
+    </div>
+
+    <!-- Rooms Table -->
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">All Rooms</h2>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Room Name</th>
+              <th>Location</th>
+              <th>Capacity</th>
+              <th>Images</th>
+              <th>Description</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rooms-table">
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-muted);">
+                Loading rooms...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Add/Edit Room Modal -->
+  <div class="modal-overlay" id="room-modal">
+    <div class="modal" style="max-width:520px;">
+      <h2 class="modal-title" id="modal-title">Add New Room</h2>
+
+      <div class="form-group">
+        <label class="form-label">Room Name</label>
+        <input type="text" id="room-name" class="form-input" placeholder="e.g. Computer Lab 1">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input type="text" id="room-location" class="form-input" placeholder="e.g. Block A, Level 2">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Capacity</label>
+        <input type="number" id="room-capacity" class="form-input" placeholder="e.g. 30" min="1">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description (optional)</label>
+        <input type="text" id="room-description" class="form-input" placeholder="e.g. Equipped with projector and AC">
+      </div>
+
+      <div id="modal-error" style="display:none; color:var(--error); font-size:14px; margin-bottom:16px;"></div>
+
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeRoomModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveRoom()">Save Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Images Modal -->
+  <div class="modal-overlay" id="images-modal">
+    <div class="modal" style="max-width:560px;">
+      <h2 class="modal-title" id="images-modal-title">Room Images</h2>
+
+      <!-- Current Images -->
+      <div style="margin-bottom:20px;">
+        <p class="form-label" style="margin-bottom:12px;">Current Images</p>
+        <div id="current-images" style="display:flex; flex-wrap:wrap; gap:12px;">
+          <p style="color:var(--text-muted); font-size:14px;">No images yet.</p>
+        </div>
+      </div>
+
+      <!-- Upload New Image -->
+      <div style="border-top:1px solid var(--border); padding-top:20px;">
+        <p class="form-label" style="margin-bottom:12px;">Upload New Image</p>
+
+        <!-- Drop Zone -->
+        <div 
+          id="drop-zone"
+          style="border:2px dashed var(--border); border-radius:12px; padding:32px; text-align:center; cursor:pointer; transition:border-color 0.2s ease;"
+          onclick="document.getElementById('image-input').click()"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+        >
+          <i data-lucide="image-plus" style="width:32px; height:32px; color:var(--text-muted); margin-bottom:8px;"></i>
+          <p style="font-size:14px; color:var(--text-muted);">Click to upload or drag and drop</p>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">JPG or PNG — max 5MB</p>
+        </div>
+
+        <input 
+          type="file" 
+          id="image-input" 
+          accept="image/jpeg,image/png" 
+          style="display:none;"
+          onchange="handleImageSelect(event)"
+        >
+
+        <!-- Image Preview -->
+        <div id="image-preview" style="display:none; margin-top:16px;">
+          <img id="preview-img" style="width:100%; max-height:200px; object-fit:cover; border-radius:8px; border:1px solid var(--border);">
+          <div style="display:flex; gap:12px; margin-top:12px; justify-content:flex-end;">
+            <button class="btn btn-secondary" onclick="clearImagePreview()">Remove</button>
+            <button class="btn btn-primary" id="upload-btn" onclick="uploadImage()">
+              <i data-lucide="upload" style="width:14px; height:14px;"></i>
+              Upload Image
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeImagesModal()">Done</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Delete Room Confirmation Modal -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal" style="max-width:400px;">
+      <h2 class="modal-title">Delete Room</h2>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:24px;">
+        Are you sure? All bookings for this room will also be deleted.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    requireRole('admin');
+    buildSidebar('admin');
+    buildTopbar('Manage Rooms');
+    lucide.createIcons();
+
+    let allRooms    = [];
+    let editingId   = null;
+    let deletingId  = null;
+    let managingId  = null;
+    let selectedFile = null;
+
+    // ─── LOAD ROOMS ───
+    const loadRooms = async () => {
+      const result = await roomsAPI.getAll();
+      if (!result.ok) return;
+      allRooms = result.data.rooms;
+      renderRooms();
+    };
+
+    // ─── RENDER ROOMS TABLE ───
+    const renderRooms = () => {
+      const tbody = document.getElementById('rooms-table');
+
+      if (allRooms.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No rooms yet. Add your first room.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = allRooms.map(r => {
+        const validImages = r.images ? r.images.filter(img => img && img !== 'null') : [];
+        return `
+          <tr>
+            <td style="font-weight:600;">${r.room_name}</td>
+            <td>${r.location}</td>
+            <td>${r.capacity} seats</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                ${validImages.length > 0 ? `
+                  <img src="${validImages[0]}" style="width:48px; height:36px; object-fit:cover; border-radius:4px; border:1px solid var(--border);">
+                  <span style="font-size:12px; color:var(--text-muted);">${validImages.length} photo${validImages.length > 1 ? 's' : ''}</span>
+                ` : `
+                  <span style="font-size:12px; color:var(--text-muted);">No images</span>
+                `}
+                <button 
+                  class="btn btn-secondary" 
+                  style="padding:4px 10px; font-size:12px;"
+                  onclick="openImagesModal('${r.id}', '${r.room_name}')"
+                >
+                  <i data-lucide="image" style="width:12px; height:12px;"></i>
+                  Manage
+                </button>
+              </div>
+            </td>
+            <td>${r.description || '—'}</td>
+            <td>
+              <div style="display:flex; gap:8px;">
+                <button 
+                  class="btn btn-secondary" 
+                  style="padding:6px 12px; font-size:12px;"
+                  onclick="openEditModal('${r.id}')"
+                >
+                  <i data-lucide="pencil" style="width:12px; height:12px;"></i>
+                  Edit
+                </button>
+                <button 
+                  class="btn btn-danger" 
+                  style="padding:6px 12px; font-size:12px;"
+                  onclick="openDeleteModal('${r.id}')"
+                >
+                  <i data-lucide="trash-2" style="width:12px; height:12px;"></i>
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    };
+
+    // ─── ROOM MODAL ───
+    const openRoomModal = () => {
+      editingId = null;
+      document.getElementById('modal-title').textContent   = 'Add New Room';
+      document.getElementById('save-btn').textContent      = 'Save Room';
+      document.getElementById('room-name').value           = '';
+      document.getElementById('room-location').value       = '';
+      document.getElementById('room-capacity').value       = '';
+      document.getElementById('room-description').value    = '';
+      document.getElementById('modal-error').style.display = 'none';
+      document.getElementById('room-modal').classList.add('open');
+    };
+
+    const openEditModal = (id) => {
+      const room = allRooms.find(r => r.id === id);
+      if (!room) return;
+      editingId = id;
+      document.getElementById('modal-title').textContent   = 'Edit Room';
+      document.getElementById('save-btn').textContent      = 'Save Changes';
+      document.getElementById('room-name').value           = room.room_name;
+      document.getElementById('room-location').value       = room.location;
+      document.getElementById('room-capacity').value       = room.capacity;
+      document.getElementById('room-description').value    = room.description || '';
+      document.getElementById('modal-error').style.display = 'none';
+      document.getElementById('room-modal').classList.add('open');
+    };
+
+    const closeRoomModal = () => {
+      document.getElementById('room-modal').classList.remove('open');
+    };
+
+    const saveRoom = async () => {
+      const room_name   = document.getElementById('room-name').value.trim();
+      const location    = document.getElementById('room-location').value.trim();
+      const capacity    = document.getElementById('room-capacity').value;
+      const description = document.getElementById('room-description').value.trim();
+      const errorDiv    = document.getElementById('modal-error');
+      const saveBtn     = document.getElementById('save-btn');
+
+      if (!room_name || !location || !capacity) {
+        errorDiv.textContent = 'Please fill in all required fields.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      saveBtn.textContent = 'Saving...';
+      saveBtn.disabled    = true;
+
+      const body   = { room_name, location, capacity: parseInt(capacity), description };
+      const result = editingId
+        ? await roomsAPI.update(editingId, body)
+        : await roomsAPI.create(body);
+
+      if (result.ok) {
+        showToast(editingId ? 'Room updated.' : 'Room added. You can now upload images.', 'success');
+        closeRoomModal();
+
+        // If new room, open images modal right away
+        if (!editingId) {
+          await loadRooms();
+          const newRoom = allRooms.find(r => r.room_name === room_name);
+          if (newRoom) openImagesModal(newRoom.id, newRoom.room_name);
+        } else {
+          loadRooms();
+        }
+      } else {
+        errorDiv.textContent = result.data.error || 'Something went wrong.';
+        errorDiv.style.display = 'block';
+      }
+
+      saveBtn.textContent = editingId ? 'Save Changes' : 'Save Room';
+      saveBtn.disabled    = false;
+    };
+
+    // ─── IMAGES MODAL ───
+    const openImagesModal = async (roomId, roomName) => {
+      managingId = roomId;
+      document.getElementById('images-modal-title').textContent = `Images — ${roomName}`;
+      document.getElementById('images-modal').classList.add('open');
+      clearImagePreview();
+      await loadRoomImages(roomId);
+      lucide.createIcons();
+    };
+
+    const closeImagesModal = () => {
+      document.getElementById('images-modal').classList.remove('open');
+      clearImagePreview();
+      loadRooms();
+    };
+
+    // Load images for a specific room
+    const loadRoomImages = async (roomId) => {
+      const result = await roomsAPI.getOne(roomId);
+      if (!result.ok) return;
+
+      const images = result.data.room.images
+        ? result.data.room.images.filter(img => img && img !== 'null')
+        : [];
+
+      const container = document.getElementById('current-images');
+
+      if (images.length === 0) {
+        container.innerHTML = `
+          <p style="color:var(--text-muted); font-size:14px;">No images yet.</p>
+        `;
+        return;
+      }
+
+      container.innerHTML = images.map((img, index) => `
+        <div style="position:relative; width:120px;">
+          <img 
+            src="${img}" 
+            style="width:120px; height:80px; object-fit:cover; border-radius:8px; border:1px solid var(--border);"
+          >
+          <button 
+            onclick="deleteImage('${img}')"
+            style="position:absolute; top:4px; right:4px; width:22px; height:22px; background:var(--error); border:none; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; color:white; font-size:12px; font-weight:700;"
+          >✕</button>
+        </div>
+      `).join('');
+    };
+
+    // ─── IMAGE UPLOAD ───
+    const handleImageSelect = (event) => {
+      const file = event.target.files[0];
+      if (file) showPreview(file);
+    };
+
+    const handleDragOver = (event) => {
+      event.preventDefault();
+      document.getElementById('drop-zone').style.borderColor = 'var(--primary)';
+    };
+
+    const handleDragLeave = () => {
+      document.getElementById('drop-zone').style.borderColor = 'var(--border)';
+    };
+
+    const handleDrop = (event) => {
+      event.preventDefault();
+      document.getElementById('drop-zone').style.borderColor = 'var(--border)';
+      const file = event.dataTransfer.files[0];
+      if (file) showPreview(file);
+    };
+
+    const showPreview = (file) => {
+      if (!file.type.match('image/jpeg') && !file.type.match('image/png')) {
+        showToast('Only JPG and PNG allowed.', 'error');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('File too large. Maximum 5MB.', 'error');
+        return;
+      }
+
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('image-preview').style.display = 'block';
+        document.getElementById('drop-zone').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    };
+
+    const clearImagePreview = () => {
+      selectedFile = null;
+      document.getElementById('image-input').value      = '';
+      document.getElementById('image-preview').style.display = 'none';
+      document.getElementById('drop-zone').style.display    = 'block';
+      document.getElementById('drop-zone').style.borderColor = 'var(--border)';
+    };
+
+    const uploadImage = async () => {
+        if (!selectedFile || !managingId) return;
+
+        const uploadBtn = document.getElementById('upload-btn');
+        uploadBtn.textContent = 'Uploading...';
+        uploadBtn.disabled    = true;
+
+        try {
+            // Convert file to base64
+            const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsDataURL(selectedFile);
+            });
+
+            // Send as JSON instead of FormData
+            const response = await fetch(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:5000/api/upload/room-image'
+                : 'https://your-backend.railway.app/api/upload/room-image', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                room_id:    managingId,
+                image_data: base64,
+                image_type: selectedFile.type
+            })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+            showToast('Image uploaded successfully.', 'success');
+            clearImagePreview();
+            await loadRoomImages(managingId);
+            } else {
+            showToast(data.error || 'Upload failed.', 'error');
+            }
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast('Upload failed. Try again.', 'error');
+        }
+
+        uploadBtn.textContent = 'Upload Image';
+        uploadBtn.disabled    = false;
+        lucide.createIcons();
+        };
+
+    // ─── DELETE IMAGE ───
+    const deleteImage = async (imageUrl) => {
+      const pool = await apiRequest('/rooms/' + managingId);
+      if (!pool.ok) return;
+
+      // Find the image_id from room_images table
+      // We'll use a dedicated delete endpoint
+      try {
+        const response = await fetch(`http://localhost:5000/api/upload/room-image-by-url`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ image_url: imageUrl, room_id: managingId })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showToast('Image deleted.', 'success');
+          await loadRoomImages(managingId);
+        } else {
+          showToast(data.error || 'Delete failed.', 'error');
+        }
+      } catch (error) {
+        showToast('Delete failed. Try again.', 'error');
+      }
+    };
+
+    // ─── DELETE ROOM ───
+    const openDeleteModal  = (id) => {
+      deletingId = id;
+      document.getElementById('delete-modal').classList.add('open');
+    };
+
+    const closeDeleteModal = () => {
+      document.getElementById('delete-modal').classList.remove('open');
+    };
+
+    const confirmDelete = async () => {
+      if (!deletingId) return;
+      const result = await roomsAPI.delete(deletingId);
+      if (result.ok) {
+        showToast('Room deleted.', 'success');
+        closeDeleteModal();
+        loadRooms();
+      } else {
+        showToast(result.data.error || 'Something went wrong.', 'error');
+      }
+    };
+
+    loadRooms();
+  </script>
+</body>
+</html>

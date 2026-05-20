@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar" id="topbar"></div>
+
+    <!-- Student Info Card -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div style="width:56px; height:56px; background:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:22px;" id="avatar">
+          —
+        </div>
+        <div>
+          <div style="font-size:18px; font-weight:700; color:var(--text);" id="student-name">—</div>
+          <div style="font-size:13px; color:var(--text-muted); margin-top:4px;" id="student-info">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="total-bookings">—</div>
+        <div class="stat-label">Total Room Bookings Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="total-rooms">—</div>
+        <div class="stat-label">Total Rooms</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="unread-notifs">—</div>
+        <div class="stat-label">Unread Notifications</div>
+      </div>
+    </div>
+
+    <!-- Today's Bookings -->
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">Today's Room Bookings</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">
+          All rooms booked for today across the college
+        </p>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Room</th>
+              <th>Location</th>
+              <th>Teacher</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-table">
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-muted);">
+                Loading today's bookings...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    // Protect this page — student only
+    const user = requireRole('student');
+
+    // Build sidebar and topbar
+    buildSidebar('student');
+    buildTopbar('Dashboard');
+
+    // Show student info card
+    document.getElementById('avatar').textContent = user.full_name.charAt(0).toUpperCase();
+    document.getElementById('student-name').textContent = user.full_name;
+    document.getElementById('student-info').textContent = 
+      `${user.course || '—'} • Year ${user.year || '—'} • Semester ${user.semester || '—'}`;
+
+    // Load dashboard data
+    const loadDashboard = async () => {
+      const [bookingsResult, roomsResult, notifResult] = await Promise.all([
+        bookingsAPI.getAll(),
+        roomsAPI.getAll(),
+        notificationsAPI.getAll()
+      ]);
+
+      // Today's date for filtering
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+
+      if (bookingsResult.ok) {
+        const allBookings = bookingsResult.data.bookings;
+
+        // Filter only today's confirmed bookings
+        const todayBookings = allBookings.filter(b => {
+          const bookingDate = new Date(b.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+          return bookingDate === today && b.status === 'confirmed';
+        });
+
+        document.getElementById('total-bookings').textContent = todayBookings.length;
+
+        const tbody = document.getElementById('bookings-table');
+
+        if (todayBookings.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-muted); padding:32px;">
+                No rooms booked today
+              </td>
+            </tr>
+          `;
+        } else {
+          tbody.innerHTML = todayBookings.map(b => `
+            <tr>
+              <td style="font-weight:600;">${b.room_name}</td>
+              <td>${b.location}</td>
+              <td>${b.teacher_name}</td>
+              <td>${b.start_time} – ${b.end_time}</td>
+              <td>${b.purpose}</td>
+              <td>
+                <span class="badge badge-success">Confirmed</span>
+              </td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      if (roomsResult.ok) {
+        document.getElementById('total-rooms').textContent = 
+          roomsResult.data.rooms.length;
+      }
+
+      if (notifResult.ok) {
+        document.getElementById('unread-notifs').textContent = 
+          notifResult.data.unread_count;
+      }
+    };
+
+    loadDashboard();
+  </script>
+</body>
+</html>

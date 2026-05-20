@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Bookings — ClassBook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" id="mobile-nav"></nav>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+
+    <div class="topbar" id="topbar"></div>
+
+    <!-- New Booking Button -->
+    <div style="margin-bottom:24px;">
+      <button class="btn btn-primary" onclick="openBookingModal()">
+        <i data-lucide="plus" style="width:16px; height:16px;"></i>
+        New Booking
+      </button>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="card">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px; font-weight:600;">My Bookings</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">
+          All your room bookings in one place
+        </p>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Room</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bookings-table">
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-muted);">
+                Loading bookings...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- New/Edit Booking Modal -->
+  <div class="modal-overlay" id="booking-modal">
+    <div class="modal">
+      <h2 class="modal-title" id="modal-title">New Booking</h2>
+
+      <div class="form-group">
+        <label class="form-label">Room</label>
+        <select id="room-select" class="form-input">
+          <option value="">Select a room</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="booking-date" class="form-input">
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Start Time</label>
+          <input type="time" id="start-time" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Time</label>
+          <input type="time" id="end-time" class="form-input">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Purpose</label>
+        <input type="text" id="purpose" class="form-input" placeholder="e.g. Replacement class, Lab session">
+      </div>
+
+      <div id="modal-error" style="display:none; color:var(--error); font-size:14px; margin-bottom:16px;"></div>
+
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeBookingModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveBooking()">Save Booking</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Cancel Confirmation Modal -->
+  <div class="modal-overlay" id="cancel-modal">
+    <div class="modal" style="max-width:400px;">
+      <h2 class="modal-title">Cancel Booking</h2>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom:24px;">
+        Are you sure you want to cancel this booking? This cannot be undone.
+      </p>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="closeCancelModal()">Keep Booking</button>
+        <button class="btn btn-danger" onclick="confirmCancel()">Yes, Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/api.js"></script>
+  <script src="../../js/notifications.js"></script>
+  <script src="../../js/dashboard.js"></script>
+  <script>
+    requireRole('teacher');
+    buildSidebar('teacher');
+    buildTopbar('My Bookings');
+    lucide.createIcons();
+
+    let allBookings = [];
+    let allRooms    = [];
+    let editingId   = null;
+    let cancellingId = null;
+
+    // ─── LOAD DATA ───
+    const loadData = async () => {
+      const [bookingsResult, roomsResult] = await Promise.all([
+        bookingsAPI.getAll(),
+        roomsAPI.getAll()
+      ]);
+
+      if (roomsResult.ok) {
+        allRooms = roomsResult.data.rooms;
+        const select = document.getElementById('room-select');
+        select.innerHTML = '<option value="">Select a room</option>' +
+          allRooms.map(r => `
+            <option value="${r.id}">${r.room_name} — ${r.location} (${r.capacity} seats)</option>
+          `).join('');
+      }
+
+      if (bookingsResult.ok) {
+        allBookings = bookingsResult.data.bookings;
+        renderBookings();
+      }
+    };
+
+    // ─── RENDER BOOKINGS ───
+    const renderBookings = () => {
+      const tbody = document.getElementById('bookings-table');
+
+      if (allBookings.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--text-muted); padding:32px;">
+              No bookings yet. Click "New Booking" to get started.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = allBookings.map(b => `
+        <tr>
+          <td style="font-weight:600;">${b.room_name}</td>
+          <td>${new Date(b.date).toLocaleDateString()}</td>
+          <td>${b.start_time} – ${b.end_time}</td>
+          <td>${b.purpose}</td>
+          <td>
+            <span class="badge ${
+              b.status === 'confirmed' ? 'badge-success' :
+              b.status === 'cancelled' ? 'badge-error' : 'badge-warning'
+            }">
+              ${b.status}
+            </span>
+          </td>
+          <td>
+            ${b.status !== 'cancelled' ? `
+              <div style="display:flex; gap:8px;">
+                <button 
+                  class="btn btn-secondary" 
+                  style="padding:6px 12px; font-size:12px;"
+                  onclick="openEditModal('${b.id}')"
+                >
+                  <i data-lucide="pencil" style="width:12px; height:12px;"></i>
+                  Edit
+                </button>
+                <button 
+                  class="btn btn-danger" 
+                  style="padding:6px 12px; font-size:12px;"
+                  onclick="openCancelModal('${b.id}')"
+                >
+                  <i data-lucide="x" style="width:12px; height:12px;"></i>
+                  Cancel
+                </button>
+              </div>
+            ` : '<span style="color:var(--text-muted); font-size:13px;">—</span>'}
+          </td>
+        </tr>
+      `).join('');
+
+      lucide.createIcons();
+    };
+
+    // ─── OPEN NEW BOOKING MODAL ───
+    const openBookingModal = () => {
+      editingId = null;
+      document.getElementById('modal-title').textContent = 'New Booking';
+      document.getElementById('save-btn').textContent    = 'Save Booking';
+      document.getElementById('room-select').value  = '';
+      document.getElementById('booking-date').value = '';
+      document.getElementById('start-time').value   = '';
+      document.getElementById('end-time').value     = '';
+      document.getElementById('purpose').value      = '';
+      document.getElementById('modal-error').style.display = 'none';
+      document.getElementById('booking-modal').classList.add('open');
+    };
+
+    // ─── OPEN EDIT MODAL ───
+    const openEditModal = (id) => {
+      const booking = allBookings.find(b => b.id === id);
+      if (!booking) return;
+
+      editingId = id;
+      document.getElementById('modal-title').textContent = 'Edit Booking';
+      document.getElementById('save-btn').textContent    = 'Save Changes';
+      document.getElementById('room-select').value  = booking.room_id;
+      document.getElementById('booking-date').value = new Date(booking.date).toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+      document.getElementById('start-time').value   = booking.start_time;
+      document.getElementById('end-time').value     = booking.end_time;
+      document.getElementById('purpose').value      = booking.purpose;
+      document.getElementById('modal-error').style.display = 'none';
+      document.getElementById('booking-modal').classList.add('open');
+    };
+
+    // ─── CLOSE BOOKING MODAL ───
+    const closeBookingModal = () => {
+      document.getElementById('booking-modal').classList.remove('open');
+    };
+
+    // ─── SAVE BOOKING ───
+    const saveBooking = async () => {
+      const room_id    = document.getElementById('room-select').value;
+      const date       = document.getElementById('booking-date').value;
+      const start_time = document.getElementById('start-time').value;
+      const end_time   = document.getElementById('end-time').value;
+      const purpose    = document.getElementById('purpose').value.trim();
+      const errorDiv   = document.getElementById('modal-error');
+      const saveBtn    = document.getElementById('save-btn');
+
+      // Validation
+      if (!room_id || !date || !start_time || !end_time || !purpose) {
+        errorDiv.textContent = 'Please fill in all fields.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      if (start_time >= end_time) {
+        errorDiv.textContent = 'End time must be after start time.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      saveBtn.textContent = 'Saving...';
+      saveBtn.disabled    = true;
+
+      let result;
+
+      if (editingId) {
+        result = await bookingsAPI.update(editingId, { date, start_time, end_time, purpose });
+      } else {
+        result = await bookingsAPI.create({ room_id, date, start_time, end_time, purpose });
+      }
+
+      if (result.ok) {
+        showToast(editingId ? 'Booking updated.' : 'Room booked successfully.', 'success');
+        closeBookingModal();
+        loadData();
+      } else {
+        errorDiv.textContent = result.data.error || 'Something went wrong.';
+        errorDiv.style.display = 'block';
+      }
+
+      saveBtn.textContent = editingId ? 'Save Changes' : 'Save Booking';
+      saveBtn.disabled    = false;
+    };
+
+    // ─── CANCEL BOOKING ───
+    const openCancelModal  = (id) => {
+      cancellingId = id;
+      document.getElementById('cancel-modal').classList.add('open');
+    };
+
+    const closeCancelModal = () => {
+      document.getElementById('cancel-modal').classList.remove('open');
+    };
+
+    const confirmCancel = async () => {
+      if (!cancellingId) return;
+      const result = await bookingsAPI.cancel(cancellingId);
+      if (result.ok) {
+        showToast('Booking cancelled.', 'success');
+        closeCancelModal();
+        loadData();
+      } else {
+        showToast(result.data.error || 'Something went wrong.', 'error');
+      }
+    };
+
+    loadData();
+  </script>
+</body>
+</html>

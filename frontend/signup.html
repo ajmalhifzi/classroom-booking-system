@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up — Classroom Booking System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <div class="auth-container">
+    <div class="auth-card" style="max-width:520px;">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <i data-lucide="building-2" style="color:white; width:22px; height:22px;"></i>
+        </div>
+        <span class="sidebar-logo-text">ClassBook</span>
+      </div>
+
+      <h1 class="auth-title">Create account</h1>
+      <p class="auth-subtitle">Fill in your details to get started</p>
+
+      <!-- Full Name -->
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" id="full_name" class="form-input" placeholder="Enter your full name">
+      </div>
+
+      <!-- National ID -->
+      <div class="form-group">
+        <label class="form-label">National ID</label>
+        <input type="text" id="national_id" class="form-input" placeholder="Enter your national ID number">
+      </div>
+
+      <!-- Gmail -->
+      <div class="form-group">
+        <label class="form-label">Gmail</label>
+        <input type="email" id="email" class="form-input" placeholder="Enter your Gmail address">
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" placeholder="Minimum 8 characters">
+      </div>
+
+      <!-- Divider -->
+      <div style="border-top:1px solid var(--border); margin:8px 0 20px; position:relative;">
+        <span style="position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--surface); padding:0 12px; font-size:12px; color:var(--text-muted);">
+          Academic Information
+        </span>
+      </div>
+
+      <!-- Course -->
+      <div class="form-group">
+        <label class="form-label">Course</label>
+        <select id="course" class="form-input">
+          <option value="">Select your course</option>
+          <option value="Teknologi Komputeran">Teknologi Komputeran</option>
+          <option value="Teknologi Rangkaian">Teknologi Rangkaian</option>
+          <option value="Teknologi Kimpalan">Teknologi Kimpalan</option>
+          <option value="Teknologi Pemesinan">Teknologi Pemesinan</option>
+        </select>
+      </div>
+
+      <!-- Year and Semester side by side -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+        <div class="form-group">
+          <label class="form-label">Year</label>
+          <select id="year" class="form-input">
+            <option value="">Select year</option>
+            <option value="1">1 SVM</option>
+            <option value="2">2 SVM</option>
+            <option value="3">1 DVM</option>
+            <option value="4">2 DVM</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <select id="semester" class="form-input">
+            <option value="">Select semester</option>
+            <option value="1">Semester 1</option>
+            <option value="2">Semester 2</option>
+            <option value="3">Semester 3</option>
+            <option value="3">Semester 4</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Error Message -->
+      <div id="error-msg" class="error-msg"></div>
+
+      <!-- Signup Button -->
+      <button class="btn btn-primary" id="signup-btn" style="width:100%; justify-content:center;">
+        Create Account
+      </button>
+
+      <!-- Login Link -->
+      <p style="text-align:center; margin-top:24px; font-size:14px; color:var(--text-muted);">
+        Already have an account?
+        <a href="index.html" style="color:var(--primary); font-weight:600; text-decoration:none;">Sign in</a>
+      </p>
+
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    lucide.createIcons();
+
+    document.getElementById('signup-btn').addEventListener('click', async () => {
+      const full_name   = document.getElementById('full_name').value.trim();
+      const national_id = document.getElementById('national_id').value.trim();
+      const email       = document.getElementById('email').value.trim();
+      const password    = document.getElementById('password').value.trim();
+      const course      = document.getElementById('course').value;
+      const year        = document.getElementById('year').value;
+      const semester    = document.getElementById('semester').value;
+      const errorMsg    = document.getElementById('error-msg');
+      const btn         = document.getElementById('signup-btn');
+
+      // Hide previous error
+      errorMsg.style.display = 'none';
+
+      // Validation — all fields required
+      if (!full_name || !national_id || !email || !password) {
+        errorMsg.textContent = 'Please fill in all personal details.';
+        errorMsg.style.display = 'flex';
+        return;
+      }
+
+      if (password.length < 8) {
+        errorMsg.textContent = 'Password must be at least 8 characters.';
+        errorMsg.style.display = 'flex';
+        return;
+      }
+
+      if (!course || !year || !semester) {
+        errorMsg.textContent = 'Please select your course, year and semester.';
+        errorMsg.style.display = 'flex';
+        return;
+      }
+
+      // Loading state
+      btn.textContent = 'Creating account...';
+      btn.disabled = true;
+
+      const result = await authAPI.signup({ 
+        full_name, 
+        national_id, 
+        email, 
+        password,
+        course,
+        year:     parseInt(year),
+        semester: parseInt(semester)
+      });
+
+      if (result.ok) {
+        showToast('Account created! Please sign in.', 'success');
+        setTimeout(() => window.location.href = 'index.html', 1500);
+      } else {
+        errorMsg.textContent = result.data.error || 'Signup failed. Try again.';
+        errorMsg.style.display = 'block';
+        btn.textContent = 'Create Account';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
