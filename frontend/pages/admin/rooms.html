@@ -454,7 +454,7 @@
             // Send as JSON instead of FormData
             const response = await fetch(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
                 ? 'http://localhost:5000/api/upload/room-image'
-                : 'https://your-backend.railway.app/api/upload/room-image', {
+                : 'https://classroom-booking-system-14n1.onrender.com/api/upload/room-image', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${getToken()}`,
@@ -495,13 +495,15 @@
       // Find the image_id from room_images table
       // We'll use a dedicated delete endpoint
       try {
-        const response = await fetch(`http://localhost:5000/api/upload/room-image-by-url`, {
-          method: 'DELETE',
-          headers: {
+        const response = await fetch(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000/api/upload/room-image-by-url'
+            : 'https://classroom-booking-system-14n1.onrender.com/api/upload/room-image-by-url', {
+            method: 'DELETE',
+            headers: {
             'Authorization': `Bearer ${getToken()}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ image_url: imageUrl, room_id: managingId })
+            },
+            body: JSON.stringify({ image_url: imageUrl, room_id: managingId })
         });
 
         const data = await response.json();
