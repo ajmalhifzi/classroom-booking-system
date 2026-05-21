@@ -26,9 +26,9 @@ const removeUser = () => localStorage.removeItem('user');
 // ─── REDIRECT BASED ON ROLE ───
 // After login, send user to their correct dashboard
 const redirectToDashboard = (role) => {
-  if (role === 'admin')   window.location.href = '/frontend/pages/admin/dashboard.html';
-  if (role === 'teacher') window.location.href = '/frontend/pages/teacher/dashboard.html';
-  if (role === 'student') window.location.href = '/frontend/pages/student/dashboard.html';
+  if (role === 'admin')   window.location.href = '/pages/admin/dashboard.html';
+  if (role === 'teacher') window.location.href = '/pages/teacher/dashboard.html';
+  if (role === 'student') window.location.href = '/pages/student/dashboard.html';
 };
 
 // ─── AUTH GUARD ───
@@ -36,9 +36,9 @@ const redirectToDashboard = (role) => {
 // If user is not logged in, send them back to login
 const requireAuth = () => {
   const token = getToken();
-  const user = getUser();
+  const user  = getUser();
   if (!token || !user) {
-    window.location.href = '/frontend/index.html';
+    window.location.href = '/index.html';
   }
   return user;
 };
@@ -58,7 +58,7 @@ const requireRole = (role) => {
 const logout = () => {
   removeToken();
   removeUser();
-  window.location.href = '/frontend/index.html';
+  window.location.href = '/index.html';
 };
 
 // ─── MAIN API FUNCTION ───

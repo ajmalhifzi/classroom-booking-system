@@ -3,19 +3,19 @@ const buildSidebar = (role) => {
 
   const navItems = {
     teacher: [
-      { icon: 'layout-dashboard', label: 'Dashboard',          href: '/frontend/pages/teacher/dashboard.html' },
-      { icon: 'calendar-plus',    label: 'My Bookings',        href: '/frontend/pages/teacher/bookings.html'  },
-      { icon: 'door-open',        label: 'Rooms & Schedule',   href: '/frontend/pages/teacher/rooms.html'     },
+      { icon: 'layout-dashboard', label: 'Dashboard',        href: '/pages/teacher/dashboard.html' },
+      { icon: 'calendar-plus',    label: 'My Bookings',      href: '/pages/teacher/bookings.html'  },
+      { icon: 'door-open',        label: 'Rooms & Schedule', href: '/pages/teacher/rooms.html'     },
     ],
     student: [
-      { icon: 'layout-dashboard', label: 'Dashboard',          href: '/frontend/pages/student/dashboard.html' },
-      { icon: 'door-open',        label: 'Room Schedule',      href: '/frontend/pages/student/rooms.html'     },
+      { icon: 'layout-dashboard', label: 'Dashboard',        href: '/pages/student/dashboard.html' },
+      { icon: 'door-open',        label: 'Room Schedule',    href: '/pages/student/rooms.html'     },
     ],
     admin: [
-      { icon: 'layout-dashboard', label: 'Dashboard',          href: '/frontend/pages/admin/dashboard.html'   },
-      { icon: 'calendar-check',   label: 'All Bookings',       href: '/frontend/pages/admin/bookings.html'    },
-      { icon: 'door-open',        label: 'Manage Rooms',       href: '/frontend/pages/admin/rooms.html'       },
-      { icon: 'users',            label: 'Manage Users',       href: '/frontend/pages/admin/users.html'       },
+      { icon: 'layout-dashboard', label: 'Dashboard',        href: '/pages/admin/dashboard.html'   },
+      { icon: 'calendar-check',   label: 'All Bookings',     href: '/pages/admin/bookings.html'    },
+      { icon: 'door-open',        label: 'Manage Rooms',     href: '/pages/admin/rooms.html'       },
+      { icon: 'users',            label: 'Manage Users',     href: '/pages/admin/users.html'       },
     ]
   };
 
