@@ -19,19 +19,21 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 // cors() allows your frontend to talk to this backend
 // express.json() allows your server to read JSON data sent from frontend
-app.use(cors({
+// CORS — must be before everything else
+const corsOptions = {
   origin: [
     'http://localhost:5500',
     'http://127.0.0.1:5500',
     'https://classroom-booking-system-one.vercel.app'
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 200
+};
 
-// Handle preflight requests
-app.options('*', cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 
